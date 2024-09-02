@@ -2,9 +2,13 @@ from Dist import Dist
 
 
 class Model:
-    def __init__(self, n_bins):
+    def __init__(self, n_bins, arima):
         self.n_bins = n_bins
+        # ARIMA - AutoRegression Integrated Moving Average Model
+        self.arima = arima
+
         self.dist_grid = self.create_grid(n_bins)
+        self.indicators = []
 
     # Function to recursively create the grid
     def create_grid(self, n_bins, current_indices=[]):
@@ -18,3 +22,9 @@ class Model:
         for coord in bin_coords:
             element = element[coord]
         return element
+
+    '''
+    TODO:
+        Create array for Dist central-moments
+        Plot/average in (u, v) coordinates
+    '''

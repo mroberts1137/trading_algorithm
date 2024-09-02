@@ -11,7 +11,11 @@ class Dist:
         self.count = np.zeros(self.bins, dtype=int)
 
     def __repr__(self):
-        # Create a histogram plot
+        '''
+        Create a histogram plot
+        use `print(Dist(U))` to plot histogram
+        :return: string representation (__repr__) of object to print
+        '''
         plt.bar(range(self.bins), self.count, width=1, edgecolor='black')
         plt.title(f"D({self.domain})")
         plt.xlabel('y')

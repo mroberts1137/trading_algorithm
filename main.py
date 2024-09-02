@@ -6,6 +6,7 @@ from Config import Config
 from Dist import Dist
 from Indicator import *
 from Model import Model
+from AutoRegression import *
 
 
 def get_sample_from_dist(distribution, *args, **kwargs):
@@ -18,65 +19,34 @@ def get_sample_from_dist(distribution, *args, **kwargs):
     return distribution(*args, **kwargs)
 
 
-def transform_moving_average(data, window):
-    '''
-    Transform data set into the indicators
-    :param data: The dataset to transform
-    :param indicators: List of indicators (e.g. SMA, EMA)
-    :return: List of indicator values for each indicator
-    '''
-    return np.ma.average(data)
+def data_step(data, config, model):
+    error_delta = get_sample_from_dist(config.distribution, **config.dist_params)
+    new_val = model.arima.step(data[-model.arima.p:], error_delta)
+    new_val = max(0, new_val)
+
+    return new_val
 
 
-def initialize_data(size, x0, distribution, *args, **kwargs):
+def initialize_data(config, model):
     '''
     Create an initial dataset by drawing points from dist
     :param size: Number of data points to generate
     :param x0: Starting value for data
+    :param autoregression: AutoRegression Model for generating new data points
     :param distribution: Distribution to sample
     :return: Array of data points
     '''
-    x = [x0]
-    for i in range(size-1):
-        new_val = max(0, x[i] + distribution(*args, **kwargs))
-        x.append(new_val)
+    data = [config.initial_value] * config.data_size
+    for _ in range(config.data_size-1):
+        new_val = data_step(data, config, model)
+        data.pop(0)
+        data.append(new_val)
 
-    return np.array(x)
-
-
-def simple_moving_average(data, window):
-    cumsum = np.cumsum(np.insert(data, 0, 0))
-    return (cumsum[window:] - cumsum[:-window]) / float(window)
-
-
-def current_sma(x, window):
-    return np.sum(x[-window:]) / float(window)
-
-
-def correcting_normal_dist(x, x0, *args, **kwargs):
-    if x > x0:
-        return np.random.normal(-1, 1)
-    else:
-        return np.random.normal(1, 1)
+    return np.array(data)
 
 
 def min_max_normalize(min_val, max_val, value):
     return (value - min_val) / (max_val - min_val)
-
-
-# Function to recursively create the grid
-def create_grid(n_bins, current_indices=[]):
-    if len(current_indices) == len(n_bins):
-        return Dist(current_indices)
-    return [create_grid(n_bins, current_indices + [i]) for i in range(n_bins[len(current_indices)])]
-
-
-# Function to access elements in the nested grid
-def access_grid_element(grid, bin_coords):
-    element = grid
-    for coord in bin_coords:
-        element = element[coord]
-    return element
 
 
 def run_simulation(iterations, data, model, config):
@@ -84,12 +54,13 @@ def run_simulation(iterations, data, model, config):
 
     for _ in range(iterations):
         ''' Generate next data point, x[n+1] = x[n] + delta_x, where delta_x ~ N(0, 1) '''
-        delta_x = get_sample_from_dist(config.distribution, **config.dist_params)
+        new_x = data_step(data, config, model)
+        delta_x = new_x - data[-1]
 
         ''' Compute indicators, e.g. mu(x) = SMA(x) '''
-        # for indicator in indicators:
-        #   indicator.step(data)
-        mu = [current_sma(data, window) for window in config.lambdas]
+        for indicator in model.indicators:
+            indicator.step(data)
+        mu = [indicator.current_val for indicator in model.indicators]
 
         ''' 
         Normalize (indicators, delta_x) to get (X, y) 
@@ -114,11 +85,12 @@ def run_simulation(iterations, data, model, config):
         dist.add(y)
 
         ''' Advance signal by delta_x '''
-        x_new = data[-1] + delta_x
         data = np.roll(data, -1)
-        data[-1] = x_new
+        data[-1] = new_x
 
     print("Simulation complete.")
+
+    return data, model
 
 
 if __name__ == "__main__":
@@ -140,30 +112,44 @@ if __name__ == "__main__":
     data_size = 100
     initial_value = 100
 
-    lambdas = [50, 10]
+    config = Config(distribution=distribution, dist_params=dist_params, data_size=data_size,
+                    initial_value=initial_value)
 
-    data = initialize_data(data_size, initial_value, distribution, **dist_params)
+    ''' AutoRegression Model '''
+    ar_p = 0
+    ar_q = 10
+    ar_phi = np.full(ar_p, 1)
+    ar_theta = np.full(ar_q, 1)
+    arima = AutoRegression(ar_phi, ar_theta)
+    print(arima)
+    arima.plot_roots()
+
+    dataset = []
+    lambdas = [50, 10]
+    n_bins = [10, 10]
+
+    # Create the model
+    model = Model(n_bins, arima)
+
+    for l in lambdas:
+        model.indicators.append(SMA(window=l))
+
+    data = initialize_data(config, model)
+
     fig, ax = plt.subplots()
     ax.plot(data)
     plt.show()
 
-    dataset = []
-    n_bins = [10, 10]
-    bins = np.zeros(shape=n_bins)
-
-    # Create the grid of Distributions
-    model = Model(n_bins)
-    # dist_grid = create_grid(n_bins)
-
-    config = Config(distribution=distribution, dist_params=dist_params, data_size=data_size, initial_value=initial_value, lambdas=lambdas, n_bins=n_bins)
-
     '''
     BEGIN DATA GENERATION
     '''
-    run_simulation(10000, data, model, config)
+    data, model = run_simulation(10000, data, model, config)
     '''
     END DATA GENERATION
     '''
+
+    print(model.dist_grid[4][6])
+    print(model.dist_grid[6][4])
 
     for i in range(n_bins[0]):
         for j in range(n_bins[1]):
@@ -219,7 +205,7 @@ if __name__ == "__main__":
         mean_y_values[bin_idx] = np.mean(y_values)
 
     # Plot the data with the grid
-    plt.scatter(X[:, 0], X[:, 1], c=y, cmap='viridis')
+    plt.scatter(X[:, 0], X[:, 1], c=y, cmap='viridis', vmin=0, vmax=1)
     plt.colorbar(label='y value')
     plt.xlabel('X[0]')
     plt.ylabel('X[1]')
@@ -238,7 +224,7 @@ if __name__ == "__main__":
     plt.show()
 
     # Plot the heatmap
-    plt.imshow(mean_y_values.T, origin='lower', cmap='viridis', extent=[0, 1, 0, 1])
+    plt.imshow(mean_y_values.T, origin='lower', cmap='viridis', extent=[0, 1, 0, 1], vmin=0, vmax=1)
     plt.colorbar(label='Mean y value')
     plt.xlabel('X[0]')
     plt.ylabel('X[1]')
