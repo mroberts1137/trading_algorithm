@@ -78,7 +78,7 @@ def run_simulation(iterations, data, model, config):
         Bin X in feature space. i.e. X -> U = Bin(X) 
             NOTE: floor(X[i] * n_bins[i]) relies on X[i] in [0, 1)
         '''
-        bin_coords = tuple([int(np.floor(X[i] * n_bins[i])) for i in range(len(n_bins))])
+        bin_coords = tuple([int(np.floor(X[i] * n_bins[i]))for i in range(len(n_bins))])
 
         ''' Bin y in distribution D(U) where U = Bin(X) '''
         dist = model.grid_at(bin_coords)
@@ -107,6 +107,11 @@ if __name__ == "__main__":
     - bins: array of bins for indicator space, U = [i, j, k, ...]
     - dist_grid: grid of distributions, D(U) where coords are bins U. D(U) = histogram of y-values given X in U
     '''
+
+    # LOAD FILE:
+    # rawdata_dir = os.path.join(os.path.join(os.getcwd(), 'load_dataset'), 'raw_data')
+    # data_file = os.path.join(self.rawdata_dir, x_data)
+
     distribution = np.random.normal
     dist_params = {"loc": 0, "scale": 1}
     data_size = 100
@@ -115,11 +120,14 @@ if __name__ == "__main__":
     config = Config(distribution=distribution, dist_params=dist_params, data_size=data_size,
                     initial_value=initial_value)
 
-    ''' AutoRegression Model '''
-    ar_p = 0
-    ar_q = 10
-    ar_phi = np.full(ar_p, 1)
-    ar_theta = np.full(ar_q, 1)
+    ''' 
+    AutoRegression Integrated Moving Average (ARIMA) Model:
+    ARIMA(p, d, q)
+    '''
+    ar_p = 25
+    ar_q = 1
+    ar_phi = np.full(ar_p, 1/ar_p)
+    ar_theta = np.full(ar_q, 1/ar_q)
     arima = AutoRegression(ar_phi, ar_theta)
     print(arima)
     arima.plot_roots()
@@ -207,8 +215,8 @@ if __name__ == "__main__":
     # Plot the data with the grid
     plt.scatter(X[:, 0], X[:, 1], c=y, cmap='viridis', vmin=0, vmax=1)
     plt.colorbar(label='y value')
-    plt.xlabel('X[0]')
-    plt.ylabel('X[1]')
+    plt.xlabel(model.indicators[0].name)
+    plt.ylabel(model.indicators[1].name)
     plt.xlim(0, 1)
     plt.ylim(0, 1)
     plt.title('Indicator Space')
@@ -226,8 +234,8 @@ if __name__ == "__main__":
     # Plot the heatmap
     plt.imshow(mean_y_values.T, origin='lower', cmap='viridis', extent=[0, 1, 0, 1], vmin=0, vmax=1)
     plt.colorbar(label='Mean y value')
-    plt.xlabel('X[0]')
-    plt.ylabel('X[1]')
+    plt.xlabel(model.indicators[0].name)
+    plt.ylabel(model.indicators[1].name)
     plt.title('Heatmap of Mean y Values in Each Bin')
     plt.grid(which='both', color='gray', linestyle='--', linewidth=0.5)
 
