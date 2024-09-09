@@ -5,14 +5,15 @@ class Indicator:
     def __init__(self):
         self.current_val = None
         self.name = ''
+        self.data = []
 
-    def step(self, data):
+    def step(self):
         '''
         Update indicator with next data step
         :param data: updated data
         :return: updated indicator value
         '''
-        pass
+        self.data.append(self.current_val)
 
 
 class SMA(Indicator):
@@ -26,6 +27,7 @@ class SMA(Indicator):
     def step(self, data):
         if len(data) >= self.window:
             self.current_val = np.sum(data[-self.window:]) / float(self.window)
+            super().step()
             return self.current_val
 
 
@@ -41,4 +43,5 @@ class Beta(Indicator):
         self.beta = np.polynomial.polynomial.Polynomial.fit(lambdas, mu, self.polynomial_order)
 
     def step(self, lambdas, mu):
+        super().step()
         return self.beta[self.order]

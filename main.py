@@ -42,6 +42,9 @@ def initialize_data(config, model):
         data.pop(0)
         data.append(new_val)
 
+        for indicator in model.indicators:
+            indicator.step(data)
+
     return np.array(data)
 
 
@@ -124,8 +127,8 @@ if __name__ == "__main__":
     AutoRegression Integrated Moving Average (ARIMA) Model:
     ARIMA(p, d, q)
     '''
-    ar_p = 40
-    ar_q = 3
+    ar_p = 50
+    ar_q = 5
     ar_phi = np.full(ar_p, 1/ar_p)
     ar_theta = np.full(ar_q, 1)
     arima = AutoRegression(ar_phi, ar_theta)
@@ -133,7 +136,7 @@ if __name__ == "__main__":
     arima.plot_roots()
 
     dataset = []
-    lambdas = [50, 10]
+    lambdas = [50, 5]
     indicators = []
     n_bins = [10, 10]
     y_bins = 10
@@ -148,6 +151,8 @@ if __name__ == "__main__":
 
     fig, ax = plt.subplots()
     ax.plot(data)
+    ax.plot(model.indicators[0].data[-data_size:])
+    ax.plot(model.indicators[1].data[-data_size:])
     plt.show()
 
     '''
@@ -161,9 +166,12 @@ if __name__ == "__main__":
     print(model.get_dist([5, 5]))
     print(model.get_dist([4, 6]))
     print(model.get_dist([6, 4]))
+    print(model.get_dist([0, 0]))
 
     fig, ax = plt.subplots()
     ax.plot(data)
+    ax.plot(model.indicators[0].data[-data_size:])
+    ax.plot(model.indicators[1].data[-data_size:])
     plt.show()
 
     '''

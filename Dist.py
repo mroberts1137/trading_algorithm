@@ -29,6 +29,9 @@ class Dist:
 
         self.dist_fit = norm(loc=self.moments[0], scale=np.sqrt(self.moments[1]))
 
+        self.stats = {"mean": self.mean, "stdv": self.stdv, "skewness": self.skewness, "kurtosis": self.kurtosis}
+        self.describe = [f"{key}: {self.stats[key]:.4f}" for key in self.stats]
+
     def __repr__(self):
         '''
         Create a histogram plot
@@ -65,7 +68,11 @@ class Dist:
     def end_run(self):
         self.calculate_moments()
         self.reconstruct_distribution()
-        print(f'Dist{self.domain}: {self.count} \tMoments: {[f"{self.moments[i]:.4f}" for i in range(len(self.moments))]}')
+
+        self.stats = {"mean": self.mean, "stdv": self.stdv, "skewness": self.skewness, "kurtosis": self.kurtosis}
+        self.describe = [f"{key}: {self.stats[key]:.4f}" for key in self.stats]
+
+        print(f'Dist{self.domain}: {self.count}\t{self.describe}')
 
     def reconstruct_distribution(self):
         a = self.mean * ((self.mean * (self.mean + 1)) / self.stdv ** 2 + 1)
@@ -84,33 +91,19 @@ class Dist:
         y_values = np.linspace(self.min, self.max, 1000)
         pdf_values = self.dist_fit.pdf(y_values)
 
-        bin_width = (self.max - self.min) / self.y_bins
-        normalized_count = (self.count / np.sum(self.count)) / bin_width
-
         plt.figure(figsize=(8, 5))
 
-        # Data
-        plt.bar(self.y_range, normalized_count, width=bin_width, edgecolor='black')
-        # Fit
+        # Plot Data
+        if np.sum(self.count) > 0:
+            bin_width = (self.max - self.min) / self.y_bins
+            normalized_count = (self.count / np.sum(self.count)) / bin_width
+            plt.bar(self.y_range, normalized_count, width=bin_width, edgecolor='black')
+
+        # Plot Fit
         plt.plot(y_values, pdf_values, label=f'N({self.mean:.4f}, {self.stdv:.4f}^2)', color='red')
 
-        plt.title(f"D{self.domain}")
+        plt.title(f'D{self.domain}: {self.describe}')
         plt.xlabel('y')
         plt.ylabel('p(y)')
         plt.legend()
-        plt.show()
-
-    def plot_custom_distribution(self, a, b, x_min=0.01, x_max=5, num_points=1000):
-        x_values = np.linspace(x_min, x_max, num_points)
-        pdf_values = self.beta_prime_pdf(x_values, a, b)
-
-        # Plot
-        plt.figure(figsize=(8, 5))
-        plt.plot(x_values, pdf_values, label=f'p(x) = x^({a}-1)(1+x)^(-{a}-{b}) / B({a},{b})')
-        plt.fill_between(x_values, pdf_values, color='lightblue', alpha=0.5)
-        plt.title('Probability Distribution Fit')
-        plt.xlabel('x')
-        plt.ylabel('p(x)')
-        plt.legend()
-        plt.grid(True)
         plt.show()
