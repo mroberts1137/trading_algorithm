@@ -1,30 +1,39 @@
+import itertools
 from Dist import Dist
 
 
 class Model:
-    def __init__(self, n_bins, arima):
-        self.n_bins = n_bins
+    def __init__(self, feature_space_bins, y_bins, arima, indicators):
+        self.indicators = indicators
+        self.feature_space_bins = feature_space_bins
+        self.y_bins = y_bins
+
         # ARIMA - AutoRegression Integrated Moving Average Model
         self.arima = arima
 
-        self.dist_grid = self.create_grid(n_bins)
-        self.indicators = []
+        self.dist_grid = {}
 
-    # Function to recursively create the grid
-    def create_grid(self, n_bins, current_indices=[]):
-        if len(current_indices) == len(n_bins):
-            return Dist(current_indices)
-        return [self.create_grid(n_bins, current_indices + [i]) for i in range(n_bins[len(current_indices)])]
+        # Initialize all possible bin coordinate combinations
+        self.bin_coords = list(itertools.product(*[range(n) for n in self.feature_space_bins]))
+        for bin_coord in self.bin_coords:
+            self.dist_grid[bin_coord] = Dist(bin_coord, self.y_bins)  # Assuming Dist is a class
 
-    # Function to access elements in the nested grid
-    def grid_at(self, bin_coords):
-        element = self.dist_grid
-        for coord in bin_coords:
-            element = element[coord]
-        return element
+
+    def get_dist(self, bin_coord):
+        return self.dist_grid.get(tuple(bin_coord), None)
+
+
+    def end_run(self):
+        for bin_coord in self.bin_coords:
+            dist = self.get_dist(bin_coord)
+            dist.end_run()
+
+        print("Simulation complete.")
 
     '''
     TODO:
         Create array for Dist central-moments
         Plot/average in (u, v) coordinates
+        Add Box Plot in front of Price Data for Dist(X)
+        Create LIVE PRICE PLOT -> update live when given input data
     '''

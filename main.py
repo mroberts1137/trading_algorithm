@@ -81,14 +81,14 @@ def run_simulation(iterations, data, model, config):
         bin_coords = tuple([int(np.floor(X[i] * n_bins[i]))for i in range(len(n_bins))])
 
         ''' Bin y in distribution D(U) where U = Bin(X) '''
-        dist = model.grid_at(bin_coords)
+        dist = model.get_dist(bin_coords)
         dist.add(y)
 
         ''' Advance signal by delta_x '''
         data = np.roll(data, -1)
         data[-1] = new_x
 
-    print("Simulation complete.")
+    model.end_run()
 
     return data, model
 
@@ -124,23 +124,25 @@ if __name__ == "__main__":
     AutoRegression Integrated Moving Average (ARIMA) Model:
     ARIMA(p, d, q)
     '''
-    ar_p = 25
-    ar_q = 1
+    ar_p = 40
+    ar_q = 3
     ar_phi = np.full(ar_p, 1/ar_p)
-    ar_theta = np.full(ar_q, 1/ar_q)
+    ar_theta = np.full(ar_q, 1)
     arima = AutoRegression(ar_phi, ar_theta)
     print(arima)
     arima.plot_roots()
 
     dataset = []
     lambdas = [50, 10]
+    indicators = []
     n_bins = [10, 10]
-
-    # Create the model
-    model = Model(n_bins, arima)
+    y_bins = 10
 
     for l in lambdas:
-        model.indicators.append(SMA(window=l))
+        indicators.append(SMA(window=l))
+
+    # Create the model
+    model = Model(n_bins, y_bins, arima, indicators)
 
     data = initialize_data(config, model)
 
@@ -156,12 +158,9 @@ if __name__ == "__main__":
     END DATA GENERATION
     '''
 
-    print(model.dist_grid[4][6])
-    print(model.dist_grid[6][4])
-
-    for i in range(n_bins[0]):
-        for j in range(n_bins[1]):
-            print(f'Dist[{i}, {j}]: {model.dist_grid[i][j].count}')
+    print(model.get_dist([5, 5]))
+    print(model.get_dist([4, 6]))
+    print(model.get_dist([6, 4]))
 
     fig, ax = plt.subplots()
     ax.plot(data)
@@ -249,3 +248,9 @@ if __name__ == "__main__":
     #     print(f'Bin {bin_idx}:')
     #     print(f'  Histogram: {hist}')
     #     print(f'  Bin edges: {bin_edges}')
+
+
+'''
+TODO:
+- Residual Plots - a good model fit should have white-noise residuals - no correlations
+'''

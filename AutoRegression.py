@@ -63,7 +63,7 @@ class AutoRegression:
         imaginary_parts = np.imag(roots)
 
         # Plotting on the complex plane
-        plt.figure(figsize=(8, 8))
+        plt.figure(figsize=(6, 6))
 
         # Draw the unit circle
         theta = np.linspace(0, 2 * np.pi, 100)
