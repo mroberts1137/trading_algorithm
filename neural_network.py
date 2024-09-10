@@ -10,10 +10,10 @@ from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 
 
-# Load stock price data (example CSV)
+# Load stock price data
 def load_data(file_path):
     df = pd.read_csv(file_path)
-    return df[['Close']].values  # Assuming 'Close' is the stock price
+    return df[['Close']].values
 
 
 # Preprocess data (normalize and create sequences for time series)
@@ -133,7 +133,37 @@ def load_model(model, filename):
         print(f"Error: {file_path} does not exist.")
 
 
-# Example usage
+# Function to make a prediction with a single new data point
+def predict_next(model, new_data, scaler, seq_length):
+    # Ensure the model is in evaluation mode
+    model.eval()
+
+    # Normalize the new data point
+    new_data_point_normalized = scaler.transform(new_data.reshape(-1, 1))
+
+    # Reshape the input to match the model's expected input (batch_size, seq_length, 1)
+    new_data_input = torch.tensor(new_data_point_normalized[-seq_length:], dtype=torch.float32).unsqueeze(0)
+
+    # Disable gradient computation for inference
+    with torch.no_grad():
+        prediction_normalized = model(new_data_input)
+
+    # Invert the normalization to get the actual stock price prediction
+    prediction = scaler.inverse_transform(prediction_normalized.numpy())
+
+    return prediction.item()
+
+'''
+# Assuming you have a trained model, a scaler, and a new data point (last 60 days of stock prices)
+new_data_point = np.array([/* last 60 days of stock prices */])
+
+# Call the function
+predicted_stock_price = predict_new_data(model, new_data_point, scaler, seq_length=60)
+
+print(f"Predicted stock price: {predicted_stock_price}")
+'''
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train or load a stock prediction model")
     parser.add_argument('--save', type=str, help="File path to save the model")

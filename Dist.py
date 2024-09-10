@@ -12,20 +12,22 @@ class Dist:
 
         self.y_bins = y_bins
         self.y_range = np.linspace(self.min, self.max, self.y_bins)
+        self.bin_width = (self.max - self.min) / self.y_bins
 
         self.count = np.zeros(self.y_bins, dtype=int)
 
         self.max_moment = 4
         self.moments = np.zeros(self.max_moment)
-        # Initialize moments to be Gaussian, N(.5, 1) -> mu_2 = sigma^2, mu_4 = 3 sigma^4
-        self.moments[0] = 0.5
+        # Initialize moments to be Gaussian, N(.5, 1)
+        self.moments[0] = self.max - self.min
         self.moments[1] = 1
-        self.moments[3] = 3
 
         self.mean = self.moments[0]
         self.stdv = np.sqrt(self.moments[1])
         self.skewness = self.moments[2] / self.stdv ** 3
         self.kurtosis = self.moments[3] / self.stdv ** 4
+
+        self.quartiles = [0, 0, 0]
 
         self.dist_fit = norm(loc=self.moments[0], scale=np.sqrt(self.moments[1]))
 
@@ -65,8 +67,42 @@ class Dist:
             self.skewness = self.moments[2] / self.stdv ** 3
             self.kurtosis = self.moments[3] / self.stdv ** 4
 
+    def calculate_quartiles(self):
+        # Cumulative sum of the counts in each bin
+        cumulative_counts = np.cumsum(self.count)
+
+        # Total number of data points
+        total_count = cumulative_counts[-1]
+
+        # Quartile thresholds
+        q1_thresh = 0.25 * total_count
+        q2_thresh = 0.50 * total_count
+        q3_thresh = 0.75 * total_count
+
+        q1 = q2 = q3 = None
+
+        for i, sum in enumerate(cumulative_counts):
+
+            # Track the first time we exceed each threshold
+            if q1 is None and sum >= q1_thresh:
+                q1 = self.y_range[i]
+
+            if q2 is None and sum >= q2_thresh:
+                q2 = self.y_range[i]
+
+            if q3 is None and sum >= q3_thresh:
+                q3 = self.y_range[i]
+                break  # We can stop once we find Q3
+
+        quartiles = [q1, q2, q3]
+        min_val = self.min + self.bin_width / 2
+        max_val = self.max - self.bin_width / 2
+        # Take midpoint of y_bins and clamp between (min_val, max_val)
+        self.quartiles = [np.maximum(min_val, np.minimum(max_val, q + self.bin_width / 2)) for q in quartiles]
+
     def end_run(self):
         self.calculate_moments()
+        self.calculate_quartiles()
         self.reconstruct_distribution()
 
         self.stats = {"mean": self.mean, "stdv": self.stdv, "skewness": self.skewness, "kurtosis": self.kurtosis}
@@ -84,7 +120,11 @@ class Dist:
         return (x**(a - 1) * (1 + x)**(-a - b)) / beta(a, b)
 
     def sample(self):
-        return self.dist_fit.rvs()
+        min_val = self.min + self.bin_width / 2
+        max_val = self.max - self.bin_width / 2
+        sample_val = self.dist_fit.rvs()
+        val = np.maximum(min_val, np.minimum(max_val, sample_val))
+        return val
 
     def plot_distribution(self):
         # Generate y values and the corresponding PDF values

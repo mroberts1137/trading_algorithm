@@ -7,6 +7,9 @@ class Indicator:
         self.name = ''
         self.data = []
 
+    def get_value(self):
+        pass
+
     def step(self):
         '''
         Update indicator with next data step
@@ -24,11 +27,14 @@ class SMA(Indicator):
         self.name = f'SMA({self.window})'
         # It might be a good idea to have a range or bin count here
 
-    def step(self, data):
+    def get_value(self, data):
         if len(data) >= self.window:
-            self.current_val = np.sum(data[-self.window:]) / float(self.window)
-            super().step()
-            return self.current_val
+            return np.sum(data[-self.window:]) / float(self.window)
+
+    def step(self, data):
+        self.current_val = self.get_value(data)
+        super().step()
+        return self.current_val
 
 
 class Beta(Indicator):
@@ -39,9 +45,14 @@ class Beta(Indicator):
         self.beta = np.zeros(self.polynomial_order + 1)
         self.name = f'Beta_{self.order}'
 
+    def get_value(self, data):
+        pass
+
     def update_beta(self, lambdas, mu):
         self.beta = np.polynomial.polynomial.Polynomial.fit(lambdas, mu, self.polynomial_order)
 
-    def step(self, lambdas, mu):
+    def step(self, data):
+        lambdas = None
+        mu = None
         super().step()
         return self.beta[self.order]

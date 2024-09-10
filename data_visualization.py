@@ -2,11 +2,47 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def plot_data_with_indicators(data, indicators, data_size):
+def plot_data(data, indicators, range=100):
     fig, ax = plt.subplots()
-    ax.plot(data)
+    ax.plot(data[-range:])
     for indicator in indicators:
-        ax.plot(indicator.data[-data_size:])
+        ax.plot(indicator.data[-range:])
+    plt.show()
+
+
+def plot_with_prediction(data, indicators, range=100, pred=None, quartiles=None):
+    fig, ax = plt.subplots()
+
+    # Plot the main data and indicators
+    ax.plot(data[-range:], label='Data', color='blue')
+    for i, indicator in enumerate(indicators):
+        ax.plot(indicator.data[-range:], label=indicator.name, linestyle='--')
+
+    # The x position where the prediction and box plot will appear (just after the last data point)
+    x_pos = len(data[-range:]) + 1
+
+    # Overlay the predicted value as a red dot at the front of the time series
+    if pred is not None:
+        ax.plot(x_pos, pred, 'ro', label='Prediction')  # Prediction dot
+
+    # Draw a box plot at the front of the data using the quartiles
+    if quartiles is not None:
+        q1, q2, q3 = quartiles
+        box_width = 3  # Width of the box plot
+
+        # Draw the vertical lines for the whiskers and the box
+        ax.vlines(x_pos - box_width / 2, q1, q3, color='lightblue', linewidth=2, label='Quartile Range')
+        ax.vlines(x_pos + box_width / 2, q1, q3, color='lightblue', linewidth=2)
+
+        # Draw the horizontal box edges at the quartiles
+        ax.hlines(quartiles, x_pos - box_width / 2, x_pos + box_width / 2, color='lightblue', linewidth=2)
+
+    # Set x-axis limits so the prediction and quartile box plot show on the right
+    ax.set_xlim(0, x_pos + 5)  # Extend the x-axis a bit to give space for the plot
+
+    # Add legend and show the plot
+    ax.legend(loc='upper left', bbox_to_anchor=(1, 1))  # Move the legend outside the plot
+    plt.tight_layout()  # Adjust layout so everything fits well
     plt.show()
 
 
@@ -58,58 +94,5 @@ def plot_indicator_space_and_heatmap(model, dataset):
 
 
 def visualize_results(data, config, model, dataset):
-    plot_data_with_indicators(data, model.indicators, config.data_size)
+    plot_data(data, model.indicators, config.data_size)
     plot_indicator_space_and_heatmap(model, dataset)
-
-
-#
-#
-#
-#
-#
-# def plot_data_and_indicators(data, indicators, data_size):
-#     fig, ax = plt.subplots()
-#     ax.plot(data)
-#     for indicator in indicators:
-#         ax.plot(indicator.data[-data_size:])
-#     plt.show()
-#
-#
-# def visualize_binning_and_distribution(X, y, n_bins, indicator_names):
-#     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 10))
-#
-#     # Scatter Plot
-#     scatter = ax1.scatter(X[:, 0], X[:, 1], c=y, cmap='viridis', vmin=0, vmax=1)
-#     ax1.set_xlabel(indicator_names[0])
-#     ax1.set_ylabel(indicator_names[1])
-#     ax1.set_title('Indicator Space')
-#     plt.colorbar(scatter, ax=ax1)
-#
-#     # Adding grid lines
-#     for ax in [ax1, ax2]:
-#         x_bins = np.linspace(0, 1, n_bins[0] + 1)
-#         y_bins = np.linspace(0, 1, n_bins[1] + 1)
-#         for x in x_bins:
-#             ax.vlines(x, ymin=0, ymax=1, colors='gray', linestyles='dashed', linewidth=0.5)
-#         for y in y_bins:
-#             ax.hlines(y, xmin=0, xmax=1, colors='gray', linestyles='dashed', linewidth=0.5)
-#
-#     # Heatmap
-#     bin_y_values = {}
-#     for i in range(len(X)):
-#         bin_idx = (np.digitize(X[i, 0], x_bins) - 1, np.digitize(X[i, 1], y_bins) - 1)
-#         if bin_idx not in bin_y_values:
-#             bin_y_values[bin_idx] = []
-#         bin_y_values[bin_idx].append(y[i])
-#
-#     mean_y_values = np.array(
-#         [[np.mean(bin_y_values.get((i, j), [np.nan])) for j in range(n_bins[1])] for i in range(n_bins[0])])
-#     heatmap = ax2.imshow(mean_y_values.T, origin='lower', cmap='viridis', extent=[0, 1, 0, 1], aspect='auto')
-#     ax2.set_title('Heatmap of Mean y Values in Each Bin')
-#     ax2.set_xlabel(indicator_names[0])
-#     ax2.set_ylabel(indicator_names[1])
-#     plt.colorbar(heatmap, ax=ax2)
-#
-#     plt.show()
-
-# Minor optimization: Combining the two plotting functions into one might be useful for consistency in plots

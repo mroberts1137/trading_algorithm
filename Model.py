@@ -4,10 +4,12 @@ from Dist import Dist
 
 
 class Model:
-    def __init__(self, n_bins, y_bins, arima, indicators):
+    def __init__(self, n_bins, y_bins, arima, indicators, x_norm, scaler):
         self.indicators = indicators
         self.n_bins = n_bins
         self.y_bins = y_bins
+        self.x_norm = x_norm
+        self.scaler = scaler
 
         # ARIMA - AutoRegression Integrated Moving Average Model
         self.arima = arima
@@ -33,6 +35,29 @@ class Model:
             dist.end_run()
 
         print("Simulation complete.")
+
+    def predict_next(self, data):
+        '''
+        Predict next data point x[t+1] given previous data {x[t-T], ..., x[t]}
+        :param data: input data array
+        :return: predicted next data point
+        '''
+        mu = [indicator.current_val for indicator in self.indicators]
+
+        min_val, max_val = np.min(data), np.max(data)
+        X = self.x_norm(min_val, max_val, mu)
+
+        bin_coord = tuple([int(np.floor(X[i] * self.n_bins[i])) for i in range(len(self.n_bins))])
+        dist = self.get_dist(bin_coord)
+
+        y_pred = dist.sample()
+        y_quartiles = dist.quartiles
+
+        pred = self.scaler.inverse(y_pred) + data[-1]
+        quartiles = self.scaler.inverse(y_quartiles) + data[-1]
+
+        return pred, quartiles
+
 
     '''
     TODO:

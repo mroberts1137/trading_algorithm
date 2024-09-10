@@ -1,10 +1,13 @@
 import numpy as np
-from data_generation import initialize_data, run_simulation
-from data_visualization import visualize_results
+from scipy.special import expit, logit
+from data_generation import initialize_data, run_simulation, data_step
+from data_visualization import *
 from Config import Config
 from Model import Model
 from AutoRegression import AutoRegression
 from Indicator import *
+from Scaler import Scaler
+from data_processing import min_max_normalize
 from fit_arima import fit_arima
 
 if __name__ == "__main__":
@@ -43,15 +46,18 @@ if __name__ == "__main__":
     ar_phi = np.full(ar_p, 1 / ar_p)
     ar_theta = np.full(ar_q, 1)
     arima = AutoRegression(ar_phi, ar_theta)
-    print(arima)
-    arima.plot_roots()
+    # print(arima)
+    # arima.plot_roots()
 
     lambdas = [50, 5]  # Window sizes for SMAs
     indicators = [SMA(window=l) for l in lambdas]
     n_bins = [10, 10]  # Number of bins for each indicator
     y_bins = 10  # Number of bins for y values
 
-    model = Model(n_bins, y_bins, arima, indicators)
+    x_norm = min_max_normalize
+    scaler = Scaler(expit, logit)
+
+    model = Model(n_bins, y_bins, arima, indicators, x_norm, scaler)
 
     data = initialize_data(config, model)
 
@@ -59,8 +65,19 @@ if __name__ == "__main__":
     iterations = 10000
     data, model, dataset = run_simulation(iterations, data, model, config)
 
-    print(model.get_dist([5, 5]))
-    print(model.get_dist([4, 6]))
-    print(model.get_dist([6, 4]))
+    # print(model.get_dist([5, 5]))
+    # print(model.get_dist([4, 6]))
+    # print(model.get_dist([6, 4]))
 
-    visualize_results(data, config, model, dataset)
+    # visualize_results(data, config, model, dataset)
+
+    pred, quartiles = model.predict_next(data)
+    plot_with_prediction(data, model.indicators, data_size, pred, quartiles)
+
+    for _ in range(10):
+        data = data_step(data, config, model)
+        error = pred - data[-1]
+        print(f'Data: {data[-1]:.2f}, Prediction: {pred:.2f}')
+        print(f'Error: {error:.2f}, {(error / data[-1] * 100):.1f}%')
+        pred, quartiles = model.predict_next(data)
+        plot_with_prediction(data, model.indicators, data_size, pred, quartiles)

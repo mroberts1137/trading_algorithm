@@ -8,10 +8,22 @@ def get_sample_from_dist(distribution, *args, **kwargs):
     return distribution(*args, **kwargs)
 
 
-def data_step(data, config, model):
+def generate_datapoint(data, config, model):
     error_delta = get_sample_from_dist(config.distribution, **config.dist_params)
     new_val = model.arima.step(data[-model.arima.p:], error_delta)
     return max(0, new_val)
+
+
+def data_step(data, config, model):
+    new_val = generate_datapoint(data, config, model)
+    data = np.roll(data, -1)
+    data[-1] = new_val
+
+    # Update all indicators with the new data point
+    for indicator in model.indicators:
+        indicator.step(data)
+
+    return data
 
 
 def initialize_data(config, model):
@@ -25,7 +37,7 @@ def initialize_data(config, model):
 
     data = [config.initial_value] * config.data_size
     for _ in range(config.data_size-1):
-        new_val = data_step(data, config, model)
+        new_val = generate_datapoint(data, config, model)
         data.pop(0)  # Remove oldest data point
         data.append(new_val)  # Add new data point
 
@@ -42,7 +54,7 @@ def run_simulation(iterations, data, model, config):
 
     for _ in range(iterations):
         ''' Generate next data point, x[n+1] = x[n] + delta_x, where delta_x ~ N(0, 1) '''
-        new_x = data_step(data, config, model)
+        new_x = generate_datapoint(data, config, model)
         delta_x = new_x - data[-1]
 
         ''' Compute indicators, e.g. mu(x) = SMA(x) '''
@@ -57,8 +69,8 @@ def run_simulation(iterations, data, model, config):
             y-normalization: logistic sigmoid: (-infty, infty) -> (0, 1)
         '''
         min_val, max_val = np.min(data), np.max(data)
-        X = min_max_normalize(min_val, max_val, mu)
-        y = expit(delta_x)
+        X = model.x_norm(min_val, max_val, mu)
+        y = model.scaler.norm(delta_x)
 
         dataset.append((X, y))
         model.add_datapoint(X, y)
