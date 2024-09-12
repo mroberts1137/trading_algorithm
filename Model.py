@@ -51,12 +51,13 @@ class Model:
         dist = self.get_dist(bin_coord)
 
         y_pred = dist.sample()
-        y_quartiles = dist.quartiles
+        y_quartiles = dist.quantiles
 
+        delta_x = self.scaler.inverse(y_pred)
         pred = self.scaler.inverse(y_pred) + data[-1]
         quartiles = self.scaler.inverse(y_quartiles) + data[-1]
 
-        return pred, quartiles
+        return delta_x, pred, quartiles
 
 
     '''

@@ -10,6 +10,41 @@ from Scaler import Scaler
 from data_processing import min_max_normalize
 from fit_arima import fit_arima
 
+
+def test(data, model, trials):
+    new_data = []
+    predictions = []
+    errors = []
+    pred_deltas = []
+    deltas = []
+    loss = 0
+
+    for _ in range(trials):
+        pred_delta, pred_x, _ = model.predict_next(data)
+
+        prev_x = data[-1]
+        data = data_step(data, config, model)
+        new_x = data[-1]
+
+        error = pred_x - new_x
+        delta_x = new_x - prev_x
+
+        deltas.append(delta_x)
+        pred_deltas.append(pred_delta)
+
+        new_data.append(new_x)
+        predictions.append(pred_x)
+
+        errors.append(error)
+
+        loss += error ** 2
+
+        # print(f'Data: {new_x:.2f}, Prediction: {pred_x:.2f}')
+        # print(f'Error: {error:.2f}, {(error / new_x * 100):.1f}%')
+
+    return loss, errors, new_data, predictions
+
+
 if __name__ == "__main__":
     '''
     Initialize CONFIG options for simulation
@@ -61,8 +96,10 @@ if __name__ == "__main__":
 
     data = initialize_data(config, model)
 
-    # Run simulation
-    iterations = 10000
+    '''
+    Train Model
+    '''
+    iterations = 1000
     data, model, dataset = run_simulation(iterations, data, model, config)
 
     # print(model.get_dist([5, 5]))
@@ -71,13 +108,36 @@ if __name__ == "__main__":
 
     # visualize_results(data, config, model, dataset)
 
-    pred, quartiles = model.predict_next(data)
-    plot_with_prediction(data, model.indicators, data_size, pred, quartiles)
+    '''
+    Test Model
+    '''
 
-    for _ in range(10):
-        data = data_step(data, config, model)
-        error = pred - data[-1]
-        print(f'Data: {data[-1]:.2f}, Prediction: {pred:.2f}')
-        print(f'Error: {error:.2f}, {(error / data[-1] * 100):.1f}%')
-        pred, quartiles = model.predict_next(data)
-        plot_with_prediction(data, model.indicators, data_size, pred, quartiles)
+    trials = 100
+    loss, errors, new_data, predictions = test(data, model, trials)
+    print(f'Loss: {loss}')
+    print(f'Residuals: Mean: {np.mean(errors)}, Stdv: {np.std(errors)}')
+
+    plot_results(new_data, predictions, errors)
+    plot_residues(errors)
+
+    # Second round of training
+
+    iterations = 10000
+    data, model, _ = run_simulation(iterations, data, model, config)
+
+    trials = 100
+    loss, errors, new_data, predictions = test(data, model, trials)
+    print(f'Loss: {loss}')
+    print(f'Residuals: Mean: {np.mean(errors)}, Stdv: {np.std(errors)}')
+
+    plot_results(new_data, predictions, errors)
+    plot_residues(errors)
+
+
+    '''
+    TODO:
+    [ ] Batch data - create random data, length n
+    [ ] Feed batch data into model
+    [ ] Use same data to train neural network model
+    [ ] Compare models
+    '''

@@ -18,16 +18,16 @@ class Dist:
 
         self.max_moment = 4
         self.moments = np.zeros(self.max_moment)
-        # Initialize moments to be Gaussian, N(.5, 1)
-        self.moments[0] = self.max - self.min
-        self.moments[1] = 1
+        # Initialize moments to be Gaussian
+        self.moments[0] = (self.max - self.min) / 2
+        self.moments[1] = (self.max - self.min) / 4
 
         self.mean = self.moments[0]
         self.stdv = np.sqrt(self.moments[1])
         self.skewness = self.moments[2] / self.stdv ** 3
         self.kurtosis = self.moments[3] / self.stdv ** 4
 
-        self.quartiles = [0, 0, 0]
+        self.quantiles = [0, 0, 0]
 
         self.dist_fit = norm(loc=self.moments[0], scale=np.sqrt(self.moments[1]))
 
@@ -60,14 +60,14 @@ class Dist:
 
             # Ensure the variance is not zero (this happens if only 1 bin has data)
             if self.moments[1] == 0:
-                self.moments[1] = 1
+                self.moments[1] = (self.max - self.min) / 4
 
             self.mean = self.moments[0]
             self.stdv = np.sqrt(self.moments[1])
             self.skewness = self.moments[2] / self.stdv ** 3
             self.kurtosis = self.moments[3] / self.stdv ** 4
 
-    def calculate_quartiles(self):
+    def calculate_quantiles(self):
         # Cumulative sum of the counts in each bin
         cumulative_counts = np.cumsum(self.count)
 
@@ -94,21 +94,22 @@ class Dist:
                 q3 = self.y_range[i]
                 break  # We can stop once we find Q3
 
-        quartiles = [q1, q2, q3]
+        quantiles = [q1, q2, q3]
         min_val = self.min + self.bin_width / 2
         max_val = self.max - self.bin_width / 2
         # Take midpoint of y_bins and clamp between (min_val, max_val)
-        self.quartiles = [np.maximum(min_val, np.minimum(max_val, q + self.bin_width / 2)) for q in quartiles]
+        self.quantiles = [np.maximum(min_val, np.minimum(max_val, q + self.bin_width / 2)) for q in quantiles]
 
-    def end_run(self):
+    def end_run(self, print_stats=False):
         self.calculate_moments()
-        self.calculate_quartiles()
+        self.calculate_quantiles()
         self.reconstruct_distribution()
 
         self.stats = {"mean": self.mean, "stdv": self.stdv, "skewness": self.skewness, "kurtosis": self.kurtosis}
         self.describe = [f"{key}: {self.stats[key]:.4f}" for key in self.stats]
 
-        print(f'Dist{self.domain}: {self.count}\t{self.describe}')
+        if print_stats:
+            print(f'Dist{self.domain}: {self.count}\t{self.describe}')
 
     def reconstruct_distribution(self):
         a = self.mean * ((self.mean * (self.mean + 1)) / self.stdv ** 2 + 1)

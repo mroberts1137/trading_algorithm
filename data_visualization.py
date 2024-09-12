@@ -10,13 +10,15 @@ def plot_data(data, indicators, range=100):
     plt.show()
 
 
-def plot_with_prediction(data, indicators, range=100, pred=None, quartiles=None):
+def plot_with_live_prediction(data, indicators, predictions, range=100, pred=None, quartiles=None):
     fig, ax = plt.subplots()
 
     # Plot the main data and indicators
     ax.plot(data[-range:], label='Data', color='blue')
     for i, indicator in enumerate(indicators):
         ax.plot(indicator.data[-range:], label=indicator.name, linestyle='--')
+
+    ax.plot(predictions[-range:])
 
     # The x position where the prediction and box plot will appear (just after the last data point)
     x_pos = len(data[-range:]) + 1
@@ -43,6 +45,36 @@ def plot_with_prediction(data, indicators, range=100, pred=None, quartiles=None)
     # Add legend and show the plot
     ax.legend(loc='upper left', bbox_to_anchor=(1, 1))  # Move the legend outside the plot
     plt.tight_layout()  # Adjust layout so everything fits well
+    plt.show()
+
+
+def plot_results(data, predictions, residuals):
+    x = np.arange(len(data))
+
+    # Create a figure and subplots
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), gridspec_kw={'height_ratios': [3, 1]}, sharex=True)
+
+    # Plot data and predictions in the first subplot
+    ax1.plot(x, data, label='Data', color='blue', linewidth=2)
+    ax1.plot(x, predictions, 'o', label='Predictions', color='red', markersize=5)
+    ax1.vlines(x, predictions, data, color='gray', alpha=0.5)  # Vertical lines between predictions and data
+    ax1.set_ylabel('Value')
+    ax1.legend()
+    ax1.set_title('Data vs Predictions')
+
+    # Plot the residuals in the second subplot
+    ax2.plot(x, residuals, 'o', label='Residuals', color='red', markersize=5)
+    ax2.vlines(x, residuals, 0, color='gray', alpha=0.5)  # Vertical lines between predictions and data
+    ax2.axhline(0, color='black', linestyle='--', linewidth=1)
+    ax2.set_xlabel('X-axis')
+    ax2.set_ylabel('Residue')
+    ax2.legend()
+    ax2.set_title('Residuals')
+
+    # Adjust layout to prevent overlap
+    plt.tight_layout()
+
+    # Show the plot
     plt.show()
 
 
@@ -96,3 +128,17 @@ def plot_indicator_space_and_heatmap(model, dataset):
 def visualize_results(data, config, model, dataset):
     plot_data(data, model.indicators, config.data_size)
     plot_indicator_space_and_heatmap(model, dataset)
+
+
+def plot_residues(errors):
+    fig, ax = plt.subplots()
+    ax.hist(errors, 17, edgecolor='black')
+    plt.show()
+
+
+def plot_deltas(deltas, pred_deltas):
+    fig, ax = plt.subplots(figsize=(14, 8))
+    ax.axhline(0, color='black')
+    ax.plot(deltas, label='delta_x', color='blue')
+    ax.plot(pred_deltas, label='pred_delta', color='green')
+    plt.show()
